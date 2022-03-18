@@ -1,0 +1,53 @@
+# This is a basic workflow that is manually triggered
+
+name: mkdtimg
+
+# Controls when the action will run. Workflow runs when manually triggered using the UI
+# or API.
+on: [push,workflow_dispatch]
+
+jobs:
+  mkdtimg:
+    runs-on: ubuntu-18.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Initialization environment
+        run: |
+          sudo -E apt-get -qq update
+          sudo -E apt-get -qq install git openjdk-8-jdk unzip zip
+
+      - name: compile
+        run: |
+          git clone --depth 1 https://github.com/topjohnwu/FrankeNDK.git
+          export PATH=${PATH}:${{ github.workspace }}/FrankeNDK
+          ndk-build NDK_DEBUG=0 APP_ABI=all
+          date=$(date +"%y%m%d")
+          echo "date=$(date +%y%m%d)" >> $GITHUB_ENV
+          zip mkdtimg-arm64-v8a-$date.zip libs/arm64-v8a/mkdtimg
+          zip mkdtimg-armeabi-v7a-$date.zip libs/armeabi-v7a/mkdtimg
+          zip mkdtimg-x86_64-$date.zip libs/x86_64/mkdtimg
+          zip mkdtimg-x86-$date.zip libs/x86/mkdtimg
+          ls
+
+      - name: Upload to Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: mkdtimg
+          path: |
+            libs/
+          retention-days: 7
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            mkdtimg-arm64-v8a-${{ env.date }}.zip
+            mkdtimg-armeabi-v7a-${{ env.date }}.zip
+            mkdtimg-x86_64-${{ env.date }}.zip
+            mkdtimg-x86-${{ env.date }}.zip
+          tag_name: ${{ env.date }}
+          token: ${{ github.token }}
+          generate_release_notes: true
